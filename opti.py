@@ -5,7 +5,7 @@ import time
 # Code 1: brut force
 def meilleur_cycle(G, debut, p):
     """
-    G : matrice d'adjacence des taux d'échanges
+    G : dictionnaire d'adjacence des taux d'échanges
     debut : monnaie de départ ('E')
     p : nombre maximum d'échanges autorisés
 
@@ -47,7 +47,7 @@ def meilleur_cycle(G, debut, p):
 # Code 2: code optimisé
 def meilleur_cycle_ameliore(G, debut, p):
     """
-    G : matrice d'adjacence des taux d'échanges
+    G : dictionnaire d'adjacence des taux d'échanges
     debut : monnaie de départ ('E')
     p : nombre maximum d'échanges autorisés
 
@@ -121,6 +121,7 @@ def meilleur_cycle_ameliore(G, debut, p):
     return meilleur_gain, meilleur_cycle
 
 
+# Dictionnaire d'adjacence (on associe à chaque noeud un dictionnaire de tous les noeuds adjacents avec les taux associés)
 G = {
     'E': {'D': 1.19, 'J': 1.33, 'F': 1.62},
     'D': {'E': 0.84, 'J': 1.12, 'F': 1.37},
