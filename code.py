@@ -4,274 +4,274 @@ import time
 """
 Javier Pena Castano, Martin Leiva, Baptiste Pras
 
-Nous avons fait 4 algorithmes:
-- Code 1: naïf et inefficace
-- Code 2: Fondé sur le principe de Bellman-Ford, plus efficace
-- Code 3: Amélioration de l'algorithme 2 quand p > X
-- Code 4: Utilisation adaptative intelligente des algorithmes 2 et 3, meilleur code
+We wrote 4 algorithms:
+- Code 1: naive and inefficient
+- Code 2: based on the Bellman-Ford principle, more efficient
+- Code 3: improvement of algorithm 2 when p > X
+- Code 4: smart adaptive use of algorithms 2 and 3, best code
 
-Des légères différences de gain peuvent arriver dans les tests car les algorithmes
-prennent les cycles dans un sens différent, donc les erreurs d'arrondis liés aux
-floats ne sont pas les mêmes, mais le résultat final est bien le même. (On fait
-les mêmes cycles le même nombre de fois dans les chemins de chaque algorithme.)
+Small differences in gain can appear in the tests because the algorithms
+traverse the cycles in a different direction, so the rounding errors of
+floats are not the same, but the final result is the same. (The same
+cycles are taken the same number of times in the paths of each algorithm.)
 """
 
 
-# Code 1: brut force
-def meilleur_cycle(G, debut, p):
+# Code 1: brute force
+def best_cycle(G, start, p):
     """
-    G : dictionnaire d'adjacence des taux d'échanges
-    debut : monnaie de départ ('E')
-    p : nombre maximum d'échanges autorisés
+    G : adjacency dictionary of the exchange rates
+    start : starting currency ('E')
+    p : maximum number of allowed exchanges
 
-    Returns : (meilleur gain, liste d'échanges à faire)
+    Returns : (best gain, list of exchanges to make)
 
     Description :
-        Explore récursivement tous les chemins possibles jusqu’à p échanges et conserve 
-        le cycle donnant le gain total le plus élevé. Cette approche teste toutes les 
-        combinaisons possibles.
+        Recursively explores all possible paths up to p exchanges and keeps
+        the cycle giving the highest total gain. This approach tests all
+        possible combinations.
 
-    Complexité :
-        Temps : O(|X|^p), avec |X| = nombre de sommets
-        Mémoire : O(p), profondeur maximale de la récursion
+    Complexity :
+        Time : O(|X|^p), with |X| = number of vertices
+        Memory : O(p), maximum depth of the recursion
     """
-    def dfs(noeud, gain, chemin, profondeur):
-        meilleur_gain = 0.0
-        meilleur_chemin = []
+    def dfs(node, gain, path, depth):
+        best_gain = 0.0
+        best_path = []
 
-        # Si on est de retour au début, c'est un cycle valide qu'on enregistre
-        if noeud == debut and profondeur > 0:
-            meilleur_gain = gain
-            meilleur_chemin = chemin
+        # If we are back at the start, it is a valid cycle that we record
+        if node == start and depth > 0:
+            best_gain = gain
+            best_path = path
 
-        # Si on a atteint la profondeur maximale
-        if profondeur == p:
-            return meilleur_gain, meilleur_chemin
+        # If we reached the maximum depth
+        if depth == p:
+            return best_gain, best_path
 
-        # On continue l'exploration
-        for suivant, taux in G[noeud].items():
-            gain_suiv, chemin_suiv = dfs(suivant, gain * taux, chemin + [suivant], profondeur + 1)
-            if gain_suiv > meilleur_gain:
-                meilleur_gain, meilleur_chemin = gain_suiv, chemin_suiv
+        # We keep exploring
+        for next_node, rate in G[node].items():
+            next_gain, next_path = dfs(next_node, gain * rate, path + [next_node], depth + 1)
+            if next_gain > best_gain:
+                best_gain, best_path = next_gain, next_path
 
-        return meilleur_gain, meilleur_chemin
+        return best_gain, best_path
 
-    return dfs(debut, 1.0, [debut], 0)
+    return dfs(start, 1.0, [start], 0)
 
 
-# Code 2: code optimisé
-def meilleur_cycle_ameliore(G, debut, p):
+# Code 2: optimized code
+def best_cycle_improved(G, start, p):
     """
-    G : dictionnaire d'adjacence des taux d'échanges
-    debut : monnaie de départ ('E')
-    p : nombre maximum d'échanges autorisés
+    G : adjacency dictionary of the exchange rates
+    start : starting currency ('E')
+    p : maximum number of allowed exchanges
 
-    Returns : (meilleur gain, liste d'échanges à faire)
+    Returns : (best gain, list of exchanges to make)
 
     Description :
-        Utilise une approche inspirée de Bellman-Ford pour calculer le meilleur cycle 
-        en au plus p échanges. À chaque itération k, on mémorise le gain maximal pour 
-        atteindre chaque sommet en k étapes, puis on cherche le cycle le plus rentable
-        et on reconstruit le meilleur chemin ensuite.
+        Uses an approach inspired by Bellman-Ford to compute the best cycle
+        in at most p exchanges. At each iteration k, we store the maximum gain
+        to reach each vertex in k steps, then we look for the most profitable
+        cycle and rebuild the best path afterwards.
 
-    Complexité :
-        Temps : O(p|U|), avec |U| = nombre d’arêtes
-        Mémoire : O(p|X|), avec |X| = nombre de sommets
+    Complexity :
+        Time : O(p|U|), with |U| = number of edges
+        Memory : O(p|X|), with |X| = number of vertices
     """
-    # dp[k][u] = meilleur gain pour atteindre u en exactement k échanges
-    # parent[k][u] = prédécesseur de u pour ce meilleur gain
+    # dp[k][u] = best gain to reach u in exactly k exchanges
+    # parent[k][u] = predecessor of u for this best gain
     dp = [{u: 0.0 for u in G} for _ in range(p + 1)]
     parent = [{u: None for u in G} for _ in range(p + 1)]
 
-    dp[0][debut] = 1.0
+    dp[0][start] = 1.0
 
     for k in range(1, p + 1):
-        maj = False 
+        updated = False
 
         for u in G:
             if dp[k - 1][u] <= 0.0:
-                continue  # Si le gain est nul on ne l'utilise pas
+                continue  # If the gain is zero we do not use it
 
-            gain_courant = dp[k - 1][u]
+            current_gain = dp[k - 1][u]
 
-            # On essaye tous les échanges possibles depuis u
-            for v, taux in G[u].items():
-                nouveau_gain = gain_courant * taux
+            # We try every possible exchange from u
+            for v, rate in G[u].items():
+                new_gain = current_gain * rate
 
-                # Si ce nouveau gain est meilleur, on le conserve
-                if nouveau_gain > dp[k][v]:
-                    dp[k][v] = nouveau_gain
+                # If this new gain is better, we keep it
+                if new_gain > dp[k][v]:
+                    dp[k][v] = new_gain
                     parent[k][v] = u
-                    maj = True
+                    updated = True
 
-        # Pas d'amélioration du meilleur gain
-        if not maj:
+        # No improvement of the best gain
+        if not updated:
             break
 
-    # Recherche du meilleur cycle revenant à la monnaie de départ
-    meilleur_gain = 0.0
-    meilleur_k = None
+    # Search for the best cycle coming back to the starting currency
+    best_gain = 0.0
+    best_k = None
     for k in range(1, p + 1):
-        if dp[k][debut] > meilleur_gain:
-            meilleur_gain = dp[k][debut]
-            meilleur_k = k
+        if dp[k][start] > best_gain:
+            best_gain = dp[k][start]
+            best_k = k
 
-    # Aucun cycle trouvé
-    if meilleur_k is None:
+    # No cycle found
+    if best_k is None:
         return 0.0, []
 
-    # Reconstruction du cycle optimal à partir des parents
-    cycle_inverse = []
-    monnaie = debut
+    # Rebuild the optimal cycle from the parents
+    reversed_cycle = []
+    currency = start
 
-    for etape in range(meilleur_k, 0, -1):
-        precedent = parent[etape][monnaie]
-        cycle_inverse.append(precedent)
-        monnaie = precedent
+    for step in range(best_k, 0, -1):
+        previous = parent[step][currency]
+        reversed_cycle.append(previous)
+        currency = previous
 
-    # Inversion pour retrouver le cycle dans le bon ordre
-    cycle_inverse.reverse()
-    meilleur_cycle = cycle_inverse + [debut]
+    # Reverse to get the cycle in the right order
+    reversed_cycle.reverse()
+    best_cycle = reversed_cycle + [start]
 
-    return meilleur_gain, meilleur_cycle
+    return best_gain, best_cycle
 
 
-# Code 3: code encore mieux optimisé
-def meilleur_cycle_optimal(G, debut, p, X=-1):
+# Code 3: even better optimized code
+def best_cycle_optimal(G, start, p, X=-1):
     """
-    G : dictionnaire d'adjacence des taux d'échanges
-    debut : monnaie de départ ('E')
-    p : nombre maximum d'échanges autorisés
+    G : adjacency dictionary of the exchange rates
+    start : starting currency ('E')
+    p : maximum number of allowed exchanges
 
-    Returns : (meilleur gain, liste d'échanges à faire)
+    Returns : (best gain, list of exchanges to make)
 
     Description :
-        Étape 1 — Exécute un Bellman-Ford amélioré jusqu'à |X| itérations
-        pour obtenir le meilleur cycle simple de chaque taille possible (2 à |X|).
+        Step 1: runs an improved Bellman-Ford up to |X| iterations
+        to get the best simple cycle of each possible size (2 to |X|).
 
-        Étape 2 — Utilise une DP "somme avec remise"
-        pour combiner ces cycles simples et atteindre un total <= p échanges.
+        Step 2: uses a "sum with repetition" DP
+        to combine these simple cycles and reach a total <= p exchanges.
 
-    Complexité :
-        Temps : O(|X||U| + p|X|), avec |U| = nombre d’arêtes et |X| = nombre de sommets
-        Mémoire : O(|X|^2 + p)
+    Complexity :
+        Time : O(|X||U| + p|X|), with |U| = number of edges and |X| = number of vertices
+        Memory : O(|X|^2 + p)
     """
     if X==-1:
         X = len(G)
 
-    # Algo 2 jusqu’à |X| itérations
+    # Algorithm 2 up to |X| iterations
     dp = [{u: 0.0 for u in G} for _ in range(X + 1)]
     parent = [{u: None for u in G} for _ in range(X + 1)]
 
-    dp[0][debut] = 1.0
-    meilleur_cycle_simple = {} 
+    dp[0][start] = 1.0
+    best_simple_cycle = {}
 
     for k in range(1, X + 1):
-        maj = False
+        updated = False
         for u in G:
             if dp[k - 1][u] <= 0.0:
                 continue
-            gain_courant = dp[k - 1][u]
-            for v, taux in G[u].items():
-                nouveau_gain = gain_courant * taux
-                if nouveau_gain > dp[k][v]:
-                    dp[k][v] = nouveau_gain
+            current_gain = dp[k - 1][u]
+            for v, rate in G[u].items():
+                new_gain = current_gain * rate
+                if new_gain > dp[k][v]:
+                    dp[k][v] = new_gain
                     parent[k][v] = u
-                    maj = True
-        if not maj:
+                    updated = True
+        if not updated:
             break
 
-        # On regarde si on a un cycle de taille k
-        if dp[k][debut] > 0.0:
-            # Reconstruction du cycle
-            cycle_inverse = []
-            monnaie = debut
-            for etape in range(k, 0, -1):
-                precedent = parent[etape][monnaie]
-                cycle_inverse.append(precedent)
-                monnaie = precedent
-            cycle_inverse.reverse()
-            meilleur_cycle_simple[k] = (dp[k][debut], cycle_inverse + [debut])
+        # We check whether there is a cycle of size k
+        if dp[k][start] > 0.0:
+            # Rebuild the cycle
+            reversed_cycle = []
+            currency = start
+            for step in range(k, 0, -1):
+                previous = parent[step][currency]
+                reversed_cycle.append(previous)
+                currency = previous
+            reversed_cycle.reverse()
+            best_simple_cycle[k] = (dp[k][start], reversed_cycle + [start])
 
-    # Combiner les cycles simples via DP "somme"
-    # dp2[t] = meilleur gain total pour un total exact de t échanges
+    # Combine the simple cycles with a "sum" DP
+    # dp2[t] = best total gain for an exact total of t exchanges
     dp2 = [0.0] * (p + 1)
     parent2 = [None] * (p + 1)
-    dp2[0] = 1.0  # gain neutre
+    dp2[0] = 1.0  # neutral gain
 
-    # On peut utiliser plusieurs fois le même cycle simple
+    # The same simple cycle can be used several times
     for t in range(1, p + 1):
-        for k, (gain_cycle, _) in meilleur_cycle_simple.items():
+        for k, (cycle_gain, _) in best_simple_cycle.items():
             if k <= t and dp2[t - k] > 0.0:
-                nouveau_gain = dp2[t - k] * gain_cycle
-                if nouveau_gain > dp2[t]:
-                    dp2[t] = nouveau_gain
+                new_gain = dp2[t - k] * cycle_gain
+                if new_gain > dp2[t]:
+                    dp2[t] = new_gain
                     parent2[t] = k
 
-    meilleur_t = max(range(p + 1), key=lambda t: dp2[t])
-    meilleur_gain = dp2[meilleur_t]
+    best_t = max(range(p + 1), key=lambda t: dp2[t])
+    best_gain = dp2[best_t]
 
-    # Reconstruction de la combinaison de cycles simples fusionnés (l'ordre n'importe pas)
+    # Rebuild the combination of merged simple cycles (the order does not matter)
     combo = []
-    t = meilleur_t
+    t = best_t
     while t > 0 and parent2[t] is not None:
         k = parent2[t]
-        combo.append(meilleur_cycle_simple[k][1])   
+        combo.append(best_simple_cycle[k][1])
         t -= k
-    combo.reverse()  # remettre dans l'ordre naturel
+    combo.reverse()  # back to the natural order
 
-    # Fusion en respectant strictement le budget meilleur_t (nb d'échanges)
-    fusion = []
-    budget = meilleur_t  # nombre d'arêtes à placer
+    # Merge while strictly respecting the budget best_t (number of exchanges)
+    merged = []
+    budget = best_t  # number of edges to place
 
     for cyc in combo:
         if budget == 0:
             break
-        if not fusion:
-            # premier cycle : on peut en prendre jusqu'à 'budget' arêtes
-            retire = min(budget, len(cyc) - 1)
-            fusion = cyc[:retire + 1]
-            budget -= retire
+        if not merged:
+            # first cycle: we can take up to 'budget' edges
+            taken = min(budget, len(cyc) - 1)
+            merged = cyc[:taken + 1]
+            budget -= taken
         else:
-            # cycles suivants : on n'ajoute que des arêtes, donc des noeuds depuis index 1
-            retire = min(budget, len(cyc) - 1)
-            # si on doit tronquer le cycle, on prend seulement la tranche nécessaire
-            fusion += cyc[1:1 + retire]
-            budget -= retire
+            # next cycles: we only add edges, so nodes from index 1
+            taken = min(budget, len(cyc) - 1)
+            # if the cycle must be truncated, we only take the needed slice
+            merged += cyc[1:1 + taken]
+            budget -= taken
 
-    return meilleur_gain, fusion
+    return best_gain, merged
 
 
-# Code 4: le meilleur code possible
-def algo_final(G, debut, p):
+# Code 4: the best possible code
+def final_algorithm(G, start, p):
     """
-    G : dictionnaire d'adjacence des taux d'échanges
-    debut : monnaie de départ ('E')
-    p : nombre maximum d'échanges autorisés
+    G : adjacency dictionary of the exchange rates
+    start : starting currency ('E')
+    p : maximum number of allowed exchanges
 
-    Returns : (meilleur gain, liste d'échanges à faire)
+    Returns : (best gain, list of exchanges to make)
 
     Description :
-        Étape 1 — Exécute un Bellman-Ford amélioré jusqu'à |X| itérations
-        pour obtenir le meilleur cycle simple de chaque taille possible (2 à |X|).
+        Step 1: runs an improved Bellman-Ford up to |X| iterations
+        to get the best simple cycle of each possible size (2 to |X|).
 
-        Étape 2 — Utilise une DP "somme avec remise"
-        pour combiner ces cycles simples et atteindre un total <= p échanges.
+        Step 2: uses a "sum with repetition" DP
+        to combine these simple cycles and reach a total <= p exchanges.
 
-    Complexité :
-        Temps : min{O(|X||U| + p|X|), O(p|U|)}, avec |U| = nombre d’arêtes et |X| = nombre de sommets
-        Mémoire : min{O(|X|^2 + p), O(p|X|)}
+    Complexity :
+        Time : min{O(|X||U| + p|X|), O(p|U|)}, with |U| = number of edges and |X| = number of vertices
+        Memory : min{O(|X|^2 + p), O(p|X|)}
     """
     X = len(G)
-    # Résoudre |X||U| + p|X| < p|U| (complexité algo 3 < complexité algo 4) avec |U| = |X|*(|X|-1) <=> p > (|X|^2 - |X|) / (|X| - 2)
-    seuil = (X*X) / (X-1)  
-    if p > seuil:  # Si p est plus grand que le seuil, alors l'algo 3 est plus efficace (en pratique le seuil tend vers |X|+1)
-        return meilleur_cycle_optimal(G, debut, p, X=X)
+    # Solve |X||U| + p|X| < p|U| (complexity of algorithm 3 < complexity of algorithm 4) with |U| = |X|*(|X|-1) <=> p > (|X|^2 - |X|) / (|X| - 2)
+    threshold = (X*X) / (X-1)
+    if p > threshold:  # If p is larger than the threshold, algorithm 3 is more efficient (in practice the threshold tends to |X|+1)
+        return best_cycle_optimal(G, start, p, X=X)
     else:
-        return meilleur_cycle_ameliore(G, debut, p)
+        return best_cycle_improved(G, start, p)
 
 
-# Dictionnaire d'adjacence (on associe à chaque noeud un dictionnaire de tous les noeuds adjacents avec les taux associés)
+# Adjacency dictionary (each node maps to a dictionary of all adjacent nodes with the associated rates)
 G = {
     'E': {'D': 1.19, 'J': 1.33, 'F': 1.62},
     'D': {'E': 0.84, 'J': 1.12, 'F': 1.37},
@@ -279,75 +279,75 @@ G = {
     'F': {'E': 0.62, 'D': 0.73, 'J': 0.82}
 }
 
-meilleur_gain, meilleur_chemin = meilleur_cycle(G, 'E', p=10)
-print("Meilleur cycle trouvé :", meilleur_chemin)
-print("Gain total :", meilleur_gain)
+best_gain, best_path = best_cycle(G, 'E', p=10)
+print("Best cycle found:", best_path)
+print("Total gain:", best_gain)
 
-meilleur_gain, meilleur_chemin = meilleur_cycle_ameliore(G, 'E', p=10)
-print("Meilleur cycle trouvé :", meilleur_chemin)
-print("Gain total :", meilleur_gain)
+best_gain, best_path = best_cycle_improved(G, 'E', p=10)
+print("Best cycle found:", best_path)
+print("Total gain:", best_gain)
 
-meilleur_gain, meilleur_chemin = meilleur_cycle_optimal(G, 'E', p=10)
-print("Meilleur cycle trouvé :", meilleur_chemin)
-print("Gain total :", meilleur_gain)
+best_gain, best_path = best_cycle_optimal(G, 'E', p=10)
+print("Best cycle found:", best_path)
+print("Total gain:", best_gain)
 
-meilleur_gain, meilleur_chemin = algo_final(G, 'E', p=10)
-print("Meilleur cycle trouvé :", meilleur_chemin)
-print("Gain total :", meilleur_gain)
+best_gain, best_path = final_algorithm(G, 'E', p=10)
+print("Best cycle found:", best_path)
+print("Total gain:", best_gain)
 
-# Pour tester la rapidité des deux et le fait qu'ils renvoient le même chemin
+# To test the speed of both and check that they return the same path
 
 
-def compter_cycles(chemin):
+def count_cycles(path):
     """
-    Le seul moyen de vérifier qu'un chemin est le même est de vérifier qu'il contient les mêmes cycles
-    Les algorithmes peuvent reconstruire les chemins dans un ordre différent mais l'ordre n'importe pas
+    The only way to check that two paths are the same is to check that they contain the same cycles
+    The algorithms can rebuild the paths in a different order but the order does not matter
     """
-    motif1 = ['E', 'D', 'F', 'E']
-    motif2 = ['E', 'F', 'E']
-    n = len(chemin)
-    cpt_edfe = 0
-    cpt_efe = 0
+    pattern1 = ['E', 'D', 'F', 'E']
+    pattern2 = ['E', 'F', 'E']
+    n = len(path)
+    count_edfe = 0
+    count_efe = 0
 
-    # balayage glissant dans le chemin
-    for i in range(n - len(motif1) + 1):
-        if chemin[i:i + len(motif1)] == motif1:
-            cpt_edfe += 1
-    for i in range(n - len(motif2) + 1):
-        if chemin[i:i + len(motif2)] == motif2:
-            cpt_efe += 1
+    # sliding scan over the path
+    for i in range(n - len(pattern1) + 1):
+        if path[i:i + len(pattern1)] == pattern1:
+            count_edfe += 1
+    for i in range(n - len(pattern2) + 1):
+        if path[i:i + len(pattern2)] == pattern2:
+            count_efe += 1
 
-    return cpt_edfe, cpt_efe
+    return count_edfe, count_efe
 
 
 """
 algo1, algo2 = 0, 0
 
 for p in range(15):
-    debut = time.time()
-    gain1, c1 = meilleur_cycle(G, 'E', p=p)
-    algo1 += time.time() - debut
-    # print(p, ": algo1 :", time.time() - debut)
-    debut = time.time()
-    gain2, c2 = meilleur_cycle_ameliore(G, 'E', p=p)
-    algo2 += time.time() - debut
-    # print(p, ": algo2 :", time.time() - debut)
-    if compter_cycles(c1) != compter_cycles(c2):
-        print("PAS D'ÉGALITÉ ENTRE LES DEUX RÉSULTATS POUR p =", p)
+    start = time.time()
+    gain1, c1 = best_cycle(G, 'E', p=p)
+    algo1 += time.time() - start
+    # print(p, ": algo1 :", time.time() - start)
+    start = time.time()
+    gain2, c2 = best_cycle_improved(G, 'E', p=p)
+    algo2 += time.time() - start
+    # print(p, ": algo2 :", time.time() - start)
+    if count_cycles(c1) != count_cycles(c2):
+        print("NO EQUALITY BETWEEN THE TWO RESULTS FOR p =", p)
 print(algo1, algo2)
 
 algo2, algo3 = 0, 0
 
 for p in range(1000):
-    debut = time.time()
-    gain1, c1, = meilleur_cycle_ameliore(G, 'E', p=p)
-    algo2 += time.time() - debut
-    #print(p, ": algo2 :", time.time() - debut)
-    debut = time.time()
-    gain2, c2, = meilleur_cycle_optimal(G, 'E', p=p)
-    algo3 += time.time() - debut
-    #print(p, ": algo2 :", time.time() - debut)
-    if compter_cycles(c1) != compter_cycles(c2):
-        print("PAS D'ÉGALITÉ ENTRE LES DEUX RÉSULTATS POUR p =", p)
+    start = time.time()
+    gain1, c1, = best_cycle_improved(G, 'E', p=p)
+    algo2 += time.time() - start
+    #print(p, ": algo2 :", time.time() - start)
+    start = time.time()
+    gain2, c2, = best_cycle_optimal(G, 'E', p=p)
+    algo3 += time.time() - start
+    #print(p, ": algo2 :", time.time() - start)
+    if count_cycles(c1) != count_cycles(c2):
+        print("NO EQUALITY BETWEEN THE TWO RESULTS FOR p =", p)
 print(algo2, algo3)
 """
